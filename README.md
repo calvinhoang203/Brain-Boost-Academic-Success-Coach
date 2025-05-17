@@ -1,12 +1,5 @@
-# BrainBoost: Your AI Academic Success Coach
+# 🎓 BrainBoost: Your AI Academic Success Coach
 
-## 📋 Your Academic Profile
-- **Current Year:** Freshman  
-- **Current GPA:** 3.00  
-- **Target Graduation Year:** 2029  
-- **Target GPA:** 3.50  
-
-## 🎓 Academic Success Coach
 Welcome to your personalized academic success coach! This AI-powered tool helps you:
 
 - 📈 Track your progress toward your GPA goals  
