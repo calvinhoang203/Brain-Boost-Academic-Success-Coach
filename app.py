@@ -36,33 +36,68 @@ def generate_recommendations(habits, grade_gap, years_to_grad, stress_level):
     }
     
     try:
-        # Study recommendations
-        if habits['study'] < 6:
+        # Check for extreme cases first
+        if habits['study'] == 0:
+            recommendations["📚 Study Strategy"].append(
+                "**Critical: No study time detected.** You must allocate time for studying to maintain or improve your grades."
+            )
+        elif habits['study'] < 2:
+            recommendations["📚 Study Strategy"].append(
+                "**Warning: Very low study time.** Your grades are likely to drop significantly with less than 2 hours of study per day."
+            )
+        elif habits['study'] < 6:
             recommendations["📚 Study Strategy"].append(
                 "**Increase study time** gradually by 1-2 hours per day"
             )
+            
         if habits.get('screen_time', 0) > 3:  # Use get() with default
             recommendations["📚 Study Strategy"].append(
                 "**Reduce screen time** during study hours - try the Pomodoro Technique"
             )
         
         # Wellness recommendations
-        if habits['sleep'] < 7:
+        if habits['sleep'] == 0:
+            recommendations["😴 Wellness"].append(
+                "**Critical: No sleep detected.** Sleep is essential for learning and memory. Aim for at least 6 hours."
+            )
+        elif habits['sleep'] < 5:
+            recommendations["😴 Wellness"].append(
+                "**Warning: Very low sleep.** Your cognitive function is severely impaired with less than 5 hours of sleep."
+            )
+        elif habits['sleep'] < 7:
             recommendations["😴 Wellness"].append(
                 "**Improve sleep habits** - aim for 7-9 hours per night"
             )
-        if habits['physical'] < 1:
+            
+        if habits['physical'] == 0:
+            recommendations["😴 Wellness"].append(
+                "**Add some physical activity** - even 15 minutes daily improves focus and reduces stress"
+            )
+        elif habits['physical'] < 1:
             recommendations["😴 Wellness"].append(
                 "**Add 30 minutes of exercise** daily for better focus"
             )
         
         # Balance recommendations
         total_activity = sum(habits.values())
-        if total_activity > 16:
+        if total_activity == 0:
+            recommendations["⚖️ Balance"].append(
+                "**Critical: No activities detected.** You need to engage in some activities to maintain academic performance."
+            )
+        elif total_activity < 4:
+            recommendations["⚖️ Balance"].append(
+                "**Warning: Very low activity level.** Your academic performance will likely suffer with minimal daily activities."
+            )
+        elif total_activity > 16:
             recommendations["⚖️ Balance"].append(
                 "**Consider reducing some activities** to prevent burnout"
             )
-        if habits['social'] < 1:
+            
+        if habits['social'] == 0:
+            recommendations["⚖️ Balance"].append(
+                "**Include some social time** - social connections are important for mental health and academic success"
+            )
+        elif habits['social'] < 1:
             recommendations["⚖️ Balance"].append(
                 "**Include some social time** for better stress management"
             )
@@ -83,6 +118,23 @@ def generate_maintenance_tips(habits, stress_level):
         "🌱 **Gradually increase challenges** to keep growing"
     ]
     return tips
+
+def generate_critical_warning(habits):
+    """Generate critical warnings for extreme cases"""
+    warnings = []
+    
+    # Check for critical issues
+    if habits['study'] == 0:
+        warnings.append("**CRITICAL: No study time detected.** Your academic performance will likely drop significantly.")
+    
+    if habits['sleep'] == 0:
+        warnings.append("**CRITICAL: No sleep detected.** This will severely impact your cognitive function and learning ability.")
+    
+    # Check if all activities are zero
+    if all(value == 0 for value in habits.values()):
+        warnings.append("**CRITICAL: No activities detected.** This pattern will lead to academic failure if not addressed immediately.")
+    
+    return warnings
 
 # Define the StudentPredictionModel class needed for loading our model
 class StudentPredictionModel:
@@ -105,8 +157,12 @@ class StudentPredictionModel:
             # Study-Sleep interaction
             X_processed['Study_Sleep_Interaction'] = X_processed['Study_Hours_Per_Day'] * X_processed['Sleep_Hours_Per_Day']
             
-            # Social-to-Study ratio
-            X_processed['Social_Study_Ratio'] = X_processed['Social_Hours_Per_Day'] / (X_processed['Study_Hours_Per_Day'] + 1e-5)
+            # Social-to-Study ratio - handle division by zero
+            study_hours = X_processed['Study_Hours_Per_Day'].values[0]
+            if study_hours == 0:
+                X_processed['Social_Study_Ratio'] = 0  # Default value when study hours is 0
+            else:
+                X_processed['Social_Study_Ratio'] = X_processed['Social_Hours_Per_Day'] / study_hours
             
             # Total active time
             X_processed['Total_Activity_Hours'] = (
@@ -115,15 +171,24 @@ class StudentPredictionModel:
                 X_processed['Physical_Activity_Hours_Per_Day']
             )
             
-            # Study efficiency
-            X_processed['Study_Efficiency'] = X_processed['Study_Hours_Per_Day'] * (X_processed['Sleep_Hours_Per_Day'] / 8)
+            # Study efficiency - handle division by zero
+            sleep_hours = X_processed['Sleep_Hours_Per_Day'].values[0]
+            if sleep_hours == 0:
+                X_processed['Study_Efficiency'] = 0  # Default value when sleep hours is 0
+            else:
+                X_processed['Study_Efficiency'] = X_processed['Study_Hours_Per_Day'] * (sleep_hours / 8)
             
-            # Balance metric
-            X_processed['Life_Balance'] = (
-                (X_processed['Sleep_Hours_Per_Day'] / 24) * 
-                (X_processed['Study_Hours_Per_Day'] / 24) * 
-                (X_processed['Physical_Activity_Hours_Per_Day'] / 24)
-            ) * 100
+            # Balance metric - handle division by zero
+            if (X_processed['Sleep_Hours_Per_Day'].values[0] == 0 or 
+                X_processed['Study_Hours_Per_Day'].values[0] == 0 or 
+                X_processed['Physical_Activity_Hours_Per_Day'].values[0] == 0):
+                X_processed['Life_Balance'] = 0  # Default value when any component is 0
+            else:
+                X_processed['Life_Balance'] = (
+                    (X_processed['Sleep_Hours_Per_Day'] / 24) * 
+                    (X_processed['Study_Hours_Per_Day'] / 24) * 
+                    (X_processed['Physical_Activity_Hours_Per_Day'] / 24)
+                ) * 100
         
         # Ensure columns are in the right order
         X_processed = X_processed[self.feature_names]
@@ -297,6 +362,22 @@ with tabs[0]:
     else:
         st.caption(f"You have {remaining_hours:.1f} hours unaccounted for in your day")
 
+    # Check for critical cases
+    current_habits = {
+        'study': float(study_hours),
+        'sleep': float(sleep_hours),
+        'social': float(social_hours),
+        'physical': float(physical_activity_hours),
+        'extracurricular': float(extracurricular_hours),
+        'screen_time': float(screen_time)
+    }
+    
+    critical_warnings = generate_critical_warning(current_habits)
+    if critical_warnings:
+        st.error("### ⚠️ Critical Warnings")
+        for warning in critical_warnings:
+            st.markdown(warning)
+
     # Analyze and predict button
     if st.button("Analyze My Habits"):
         try:
@@ -315,15 +396,6 @@ with tabs[0]:
             predicted_stress = prediction[1]
             
             # Store habits and predictions in history
-            current_habits = {
-                'study': float(study_hours),
-                'sleep': float(sleep_hours),
-                'social': float(social_hours),
-                'physical': float(physical_activity_hours),
-                'extracurricular': float(extracurricular_hours),
-                'screen_time': float(screen_time)
-            }
-            
             st.session_state.user_profile['habits_history'].append({
                 'date': datetime.now(),
                 'habits': current_habits,
@@ -421,7 +493,43 @@ with tabs[2]:
                 datetime.now().year
             )
             
-            if grade_gap > 0:
+            # Check for critical cases first
+            critical_warnings = generate_critical_warning(current_habits)
+            if critical_warnings:
+                st.error("### ⚠️ Critical Warnings")
+                for warning in critical_warnings:
+                    st.markdown(warning)
+                
+                st.markdown("""
+                ### 🚨 Immediate Action Required
+                Your current habits indicate a high risk of academic failure. Please make the following changes immediately:
+                """)
+                
+                # Generate specific recommendations
+                recommendations = generate_recommendations(
+                    current_habits,
+                    grade_gap,
+                    years_to_grad,
+                    latest['predictions']['stress']
+                )
+                
+                # Display recommendations by category
+                for category, recs in recommendations.items():
+                    if recs:  # Only show categories with recommendations
+                        st.markdown(f"#### {category}")
+                        for rec in recs:
+                            st.markdown(f"- {rec}")
+                
+                # Add emergency tips
+                st.markdown("""
+                ### 🆘 Emergency Tips
+                - **Start with just 1 hour of study** per day and gradually increase
+                - **Prioritize sleep** - aim for at least 6 hours immediately
+                - **Seek academic support** from your professors or tutoring center
+                - **Consider speaking with an academic advisor** about your situation
+                """)
+            
+            elif grade_gap > 0:
                 st.markdown(f"""
                 Based on your current habits and goals:
                 - You're currently on track for a **{predicted_grade}** grade level
@@ -439,9 +547,10 @@ with tabs[2]:
                 
                 # Display recommendations by category
                 for category, recs in recommendations.items():
-                    st.markdown(f"#### {category}")
-                    for rec in recs:
-                        st.markdown(f"- {rec}")
+                    if recs:  # Only show categories with recommendations
+                        st.markdown(f"#### {category}")
+                        for rec in recs:
+                            st.markdown(f"- {rec}")
                 
                 # Habit change simulation
                 st.markdown("### 🔄 Simulate Habit Changes")
@@ -485,6 +594,22 @@ with tabs[2]:
                                 sim_prediction[0],
                                 delta=("↑" if sim_prediction[0] > predicted_grade else "↓")
                             )
+                            
+                        # Show warning if simulation has critical issues
+                        sim_habits = {
+                            'study': float(sim_study),
+                            'sleep': float(sim_sleep),
+                            'social': float(current_habits['social']),
+                            'physical': float(sim_physical),
+                            'extracurricular': float(current_habits['extracurricular']),
+                            'screen_time': float(current_habits['screen_time'])
+                        }
+                        
+                        sim_warnings = generate_critical_warning(sim_habits)
+                        if sim_warnings:
+                            st.error("### ⚠️ Critical Warnings for Simulation")
+                            for warning in sim_warnings:
+                                st.markdown(warning)
                     except Exception as e:
                         st.error("Error running simulation. Please try different values.")
             else:
