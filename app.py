@@ -594,7 +594,14 @@ with tabs[2]:
                                 sim_prediction[0],
                                 delta=("↑" if sim_prediction[0] > predicted_grade else "↓")
                             )
-                            
+                        
+                        # Show explicit message for grade change
+                        if sim_prediction[0] > predicted_grade:
+                            st.success("🟢 Your predicted grade will improve!")
+                        elif sim_prediction[0] < predicted_grade:
+                            st.warning("🔴 Warning: Your predicted grade will drop.")
+                        else:
+                            st.info("No change in predicted grade.")
                         # Show warning if simulation has critical issues
                         sim_habits = {
                             'study': float(sim_study),
