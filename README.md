@@ -46,7 +46,7 @@ This project utilizes machine learning techniques to analyze the Student Lifesty
 ## Dataset Information
 - **Name:** Student Lifestyle Dataset  
 - **Records:** 2,000 students’ daily routines and stress metrics  
-- **Source:** [Student Lifestyle Dataset on Kaggle](#)  
+- **Source:** [Student Lifestyle Dataset on Kaggle](https://www.kaggle.com/datasets/steve1215rogg/student-lifestyle-dataset/data)
 
 ## Potential Applications
 - Forecast academic success based on lifestyle patterns  
